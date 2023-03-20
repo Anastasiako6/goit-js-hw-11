@@ -1,132 +1,107 @@
-import axios from 'axios';
-import SimpleLightbox from 'simplelightbox';
-import 'simplelightbox/dist/simple-lightbox.min.css';
-import Notiflix from "notiflix";
+import { Notify } from 'notiflix/build/notiflix-notify-aio';
+import SimpleLightbox from "simplelightbox";
+import "simplelightbox/dist/simple-lightbox.min.css";
+import Notiflix from 'notiflix';
+
+const KEY = '34508381-5f1bfab6abde36f0f37ce7014';
+const HITS_PER_PAGE = 40;
+let page = 1;
+let items = [];
+let query = '';
 
 const refs = {
-  form: document.querySelector('.search-form'),
-  input: document.querySelector('input'),
-  gallery: document.querySelector('.gallery'),
-  btnLoadMore: document.querySelector('.load-more'),
+    form: document.querySelector('.search-form'),
+    gallery: document.querySelector('.gallery'),
+    loadMore: document.querySelector('.load-more'),
 };
 
-let page = 1;
+refs.loadMore.style.display = 'none'; 
 
-refs.form.addEventListener('submit', (e) => {
+const showBtnLoadMore = () => {
+    refs.loadMore.classList.display = 'none';
+};
+
+const render = () => {
+    const galleryMarkup = items.map(({ likes, views, comments, downloads, tags, webformatURL, largeImageURL }) => `
+    <a href="${largeImageURL}">
+    <div class="photo-card">
+    <img src="${webformatURL}" alt="${tags}" loading="lazy" />
+    <div class="info">
+    <p class="info-item">
+    <b>Likes</b>
+    ${likes}
+    </p>
+    <p class="info-item">
+    <b>Views</b>
+    ${views}
+    </p>
+    <p class="info-item">
+    <b>Comments</b>
+    ${comments}
+    </p>
+    <p class="info-item">
+    <b>Downloads</b>
+    ${downloads}
+    </p>
+    </div>
+    </div>
+    </a>
+    `);
+
+    if (page === 1) {
+        refs.gallery.innerHTML = '';
+    };
+
+    refs.gallery.insertAdjacentHTML('beforeend', galleryMarkup);
+    simpleLightbox.refresh();
+    showBtnLoadMore();
+
+};
+
+let  simpleLightbox = new SimpleLightbox('.gallery a', {
+  captionsData: "alt",
+    captionDelay: 250,
+});
+
+
+const queryHandler = (e) => {
     e.preventDefault();
+    const { value } = e.target.elements.searchQuery;
+
+    if (query === value || !value) {
+        return;
+    };
+
+    query = value.trim();
+
+    if (query === '') {
+        return;
+    };
+
     page = 1;
-    refs.gallery.innerHTML = '';
-    const name = refs.input.value.trim();
+    goFetch(query);
+};
 
-    if (name !== '') {
-        pixabay(name);
+const goFetch = async (query) => {
+    const response = await fetch(`https://pixabay.com/api/?key=${KEY}&q=${query}&image_type=photo&orientation=horizontal&safesearch=true&page=${page}&per_page=40`);
+    const data = await response.json();
+    if (data.hits.length === 0 ||  data.hits.length === '') {
+        Notiflix.Notify.failure('Sorry, there are no images matching your search query. Please try again.')
+    } else if (data.hits.length < 40  & data.hits.length > 0) {
+        Notiflix.Notify.failure("We're sorry, but you've reached the end of search results.");
     } else {
-        refs.btnLoadMore.style.display = 'none';
-        return Notiflix.Notify.failure(
-      'Sorry, there are no images matching your search query. Please try again.'
-    );
+      Notiflix.Notify.info(`Hooray! We found ${data.totalHits} images.`);
     }
-});
 
-refs.btnLoadMore.addEventListener('click', (e) => {
-    const name = refs.input.value.trim();
-    page += 1; 
-    pixabay(name, page);
-});
+    
+    items = data.hits;
+    render();
+};
 
+const loadMoreHandler = () => {
+    page += 1;
+    goFetch(query);
+};
 
-async function pixabay(name, page) {
-  const API_URL = 'https://pixabay.com/api/';
-
-  const options = {
-    params: {
-      key: '34508381-5f1bfab6abde36f0f37ce7014',
-      q: name,
-      image_type: 'photo',
-      orientation: 'horizontal',
-      safesearch: 'true',
-      page: page,
-      per_page: 40,
-    },
-  };
-
-  try {
-    const response = await axios.get(API_URL, options);
-
-    notification(
-      response.data.hits.length, 
-      response.data.total 
-    );
-
-    createMarkup(response.data); 
-  } catch (error) {
-    console.log(error);
-  }
-}
-
-refs.btnLoadMore.style.display = 'none';
-function createMarkup(arr) {
-  const markup = arr.hits
-    .map(
-      item =>
-        `<a class="photo-link" href="${item.largeImageURL}">
-            <div class="cards">
-            <div class="photo">
-            <img src="${item.webformatURL}" alt="${item.tags}" loading="lazy"/>
-            </div>
-                    <div class="info">
-                        <p class="info-item">
-                            <b>Likes</b>
-                            ${item.likes}
-                        </p>
-                        <p class="info-item">
-                            <b>Views</b>
-                            ${item.views}
-                        </p>
-                        <p class="info-item">
-                            <b>Comments</b>
-                            ${item.comments}
-                        </p>
-                        <p class="info-item">
-                            <b>Downloads</b>
-                            ${item.downloads}
-                        </p>
-                    </div>
-            </div>
-        </a>`
-    )
-    .join(''); 
-  refs.gallery.insertAdjacentHTML('beforeend', markup); 
-  simpleLightBox.refresh();
-}
-
-const simpleLightBox = new SimpleLightbox('.gallery a', {
-  captionsData: 'alt', 
-  captionDelay: 300, 
-});
-
-
-function notification(length, totalHits) {
-  if (length === 0) {
-
-    Notiflix.Notify.failure(
-      'Sorry, there are no images matching your search query. Please try again.'
-      );
-    refs.btnLoadMore.style.display = 'none';
-    return;
-  }
-
-  if (page === 1) {
-    refs.btnLoadMore.style.display = 'flex';
-
-    Notiflix.Notify.success(`Hooray! We found ${totalHits} images.`);
-  }
-
-  if (length < 40) {
-    refs.btnLoadMore.style.display = 'none'; 
-
-    Notiflix.Notify.info(
-      "We're sorry, but you've reached the end of search results."
-    );
-  }
-}
+refs.form.addEventListener('submit', queryHandler);
+refs.loadMore.addEventListener('click', loadMoreHandler);
