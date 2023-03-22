@@ -60,17 +60,12 @@ button{
     cursor: pointer;
 }
 
-.photo-card{
+img{
     display: inline-block;
     width: 350px;
     border: 1px solid black;
     border-radius: 10px;
     background-color: #fff;
-}
-
-.photo {
-    min-width: 350px;
-    height: 250px;
 }
 
 .info {
@@ -89,7 +84,6 @@ button{
     font-weight: 500;
     line-height: 1.75rem;
 }
-
 .info-item {
     display: flex;
     flex-direction: column;
