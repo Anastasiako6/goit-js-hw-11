@@ -75,21 +75,33 @@ function cleanGallery() {
 
 function renderGallery(images) {
   const markup = images
-    .map(img => {
-      return `
-        <a class="gallery__link" href="${img.largeImageURL}">
-          <div class="gallery-item" id="${img.id}">
-            <img class="gallery-item__img" src="${img.webformatURL}" alt="${img.tags}" loading="lazy" />
-            <div class="info">
-              <p class="info-item"><b>Likes</b>${img.likes}</p>
-              <p class="info-item"><b>Views</b>${img.views}</p>
-              <p class="info-item"><b>Comments</b>${img.comments}</p>
-              <p class="info-item"><b>Downloads</b>${img.downloads}</p>
+    .map(photo =>
+        `<a class="photo-link" href="${photo.largeImageURL}">
+            <div class="photo-card">
+            <div class="photo">
+            <img src="${photo.webformatURL}" alt="${photo.tags}" loading="lazy"/>
             </div>
-          </div>
-        </a>
-      `;
-    })
+                    <div class="info">
+                        <p class="info-item">
+                            <b>Likes</b>
+                            ${photo.likes}
+                        </p>
+                        <p class="info-item">
+                            <b>Views</b>
+                            ${photo.views}
+                        </p>
+                        <p class="info-item">
+                            <b>Comments</b>
+                            ${photo.comments}
+                        </p>
+                        <p class="info-item">
+                            <b>Downloads</b>
+                            ${photo.downloads}
+                        </p>
+                    </div>
+            </div>
+        </a>`
+    )
     .join('');
 
   gallery.insertAdjacentHTML('beforeend', markup);
