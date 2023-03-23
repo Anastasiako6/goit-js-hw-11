@@ -1,109 +1,122 @@
-
+import PixabayApi from './fetchImages.js';
 import Notiflix from 'notiflix';
 import SimpleLightbox from 'simplelightbox';
 import 'simplelightbox/dist/simple-lightbox.min.css';
-import fetchImage from './fetchImages';
 
-const searchForm = document.getElementById('search-form');
-const searchInput = document.querySelector('input[type="text"]');
+const form = document.getElementById('search-form');
+const input = document.querySelector('.input');
+
+// const btnSearch = document.querySelector('.search-form-button');
 const gallery = document.querySelector('.gallery');
-const loadMore = document.querySelector('.load-more');
+const btnLoadMore = document.querySelector('.load-more');
+let gallerySimpleLightbox = new SimpleLightbox('.gallery a');
 
+const pixabayApiService = new PixabayApi();
 
-let page = 1;
+btnLoadMore.style.display = 'none';
+form.addEventListener('submit', onSubmit);
+btnLoadMore.addEventListener('click', moreLoad);
 
-loadMore.style.display = 'none';
+function onSubmit(e) {
 
-const simpleLightBox = new SimpleLightbox('.gallery a', {
-  captionsData: 'alt',
-  captionDelay: 250,
-});
-
-searchForm.addEventListener('submit', (e) => {
-e.preventDefault();
+  e.preventDefault();
   cleanGallery();
-  let inputValue = searchInput.value.trim();
-  if (inputValue === '')
-  {
-    Notiflix.Notify.failure(
-      'The search string cannot be empty. Please specify your search query.',
+
+  const form = e.currentTarget;
+  let value = input.value.trim();
+
+  if (value.length === 0) {
+    return Notiflix.Notify.failure(`The search string cannot be empty. Please specify your search query.`);
+  };
+  pixabayApiService.resetPage();
+  
+  pixabayApiService.query = value;
+
+  moreLoad();
+};
+
+async function moreLoad() {
+
+  try {
+    const data = await pixabayApiService.getImage();
+
+    const { hits, totalHits } = data;
+
+    if (hits.length === 0) {
+      btnLoadMore.style.display = 'none';
+      return Notiflix.Notify.failure(
+    'Sorry, there are no images matching your search query. Please try again.'
+  ); 
+    };
+
+    const markup = hits.reduce(
+      (markup, hits) => createMarkup(hits) + markup,
+      ''
     );
-    loadMore.style.display = 'flex';
-    return;
+    appendNewToList(markup);
+
+    let page = pixabayApiService.page - 1;
+
+    if (pixabayApiService.page - 1 === 1) onInfo(totalHits);
+    const totalPages = totalHits / 40;
+
+    if (page > totalPages) {
+      btnLoadMore.style.display = 'none';
+      return Notiflix.Notify.info(
+  "That's all! We couldn't find more pictures..."
+  );
+    };
+
+    btnLoadMore.style.display = 'block';
+  } catch (err) {
+    return err;
   }
-  fetchImage(inputValue, page)
-    .then(data => {
-      if (data.totalHits === 0) {
-        Notiflix.Notify.failure(
-          'Sorry, there are no images matching your search query. Please try again.',
-        );
-          loadMore.style.display = 'none';
-      } else {
-        renderGallery(data.hits);
-        Notiflix.Notify.success(`Hooray! We found ${data.totalHits} images.`);
-        loadMore.style.display = 'flex';
-      }
-    })
-    .catch(error => console.log(error))
-    .finally(() => {
-      searchForm.reset();
-    });
-});
-
-loadMore.addEventListener('click', onClickLoadMoreBtn);
-
-function onClickLoadMoreBtn() {
-  page += 1;
-  let inputValue = searchInput.value.trim();
-  fetchImage(inputValue, page).then(foundDate => {
-    renderGallery(foundDate.hits);
-
-    if (foundDate.hits.length < 40) {
-      Notiflix.Notify.info(
-        "We're sorry, but you've reached the end of search results."
-      );
-      loadMore.style.display = 'none';
-    }
-  });
 }
 
+function appendNewToList(markup) {
+  gallery.insertAdjacentHTML('beforeend', markup);
+  gallerySimpleLightbox.refresh();
+}
+
+function createMarkup({
+  webformatURL,
+  largeImageURL,
+  tags,
+  likes,
+  views,
+  comments,
+  downloads,
+}) {
+  
+      return `<div class="photo-card">
+      <div class="images">
+      <a href="${largeImageURL}"><img class="photo" src="${webformatURL}" alt="${tags}" title="${tags}" loading="lazy"/></a>
+      </div>
+        <div class="info">
+            <p class="info-item">
+                <b>Likes</b> <span class="info-item-api"> ${likes} </span>
+            </p>
+            <p class="info-item">
+                <b>Views</b> <span class="info-item-api">${views}</span>  
+            </p>
+            <p class="info-item">
+                <b>Comments</b> <span class="info-item-api">${comments}</span>  
+            </p>
+            <p class="info-item">
+                <b>Downloads</b> <span class="info-item-api">${downloads}</span> 
+            </p>
+        </div>
+    </div>`;
+    
+}
 
 function cleanGallery() {
   gallery.innerHTML = '';
-  page = 1;
+  btnLoadMore.style.display = 'none';
 }
 
-function renderGallery(images) {
-  const markup = images
-    .map(photo =>
-        `<a class="photo-link" href="${photo.largeImageURL}">
-            <div class="photo-card">
-            <div class="photo">
-            <img src="${photo.webformatURL}" alt="${photo.tags}" loading="lazy"/>
-            </div>
-                    <div class="info">
-                        <p class="info-item">
-                            <b>Likes</b>
-                            ${photo.likes}
-                        </p>
-                        <p class="info-item">
-                            <b>Views</b>
-                            ${photo.views}
-                        </p>
-                        <p class="info-item">
-                            <b>Comments</b>
-                            ${photo.comments}
-                        </p>
-                        <p class="info-item">
-                            <b>Downloads</b>
-                            ${photo.downloads}
-                        </p>
-                    </div>
-            </div>
-        </a>`
-    )
-    .join('');
-
-  gallery.insertAdjacentHTML('beforeend', markup);
-  simpleLightBox.refresh();
+function onInfo(info) {
+  Notiflix.Notify.success(
+    `Hooray! We found ${info} images.`
+  );
 }
